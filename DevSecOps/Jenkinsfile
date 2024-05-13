@@ -1,49 +1,53 @@
-
-pipeline {
-    
+pipeline{
     agent any
     environment{
         SONAR_HOME = tool "Sonar"
     }
-    stages {
+    stages{
         
-        stage("Code"){
+        stage("code"){
             steps{
-                git url: "https://github.com/LondheShubham153/node-todo-cicd.git" , branch: "master"
-                echo "Code Cloned Successfully"
+                git url:"https://github.com/sanchit1498/node-todo-cicd.git" , branch:"master"
+                echo "cloned sucess"
             }
         }
-        stage("SonarQube Analysis"){
+        
+        stage("Sonarqube analysis"){
             steps{
-               withSonarQubeEnv("Sonar"){
-                   sh "$SONAR_HOME/bin/sonar-scanner -Dsonar.projectName=nodetodo -Dsonar.projectKey=nodetodo -X"
-               }
+              withSonarQubeEnv("Sonar"){
+                 sh "$SONAR_HOME/bin/sonar-scanner -Dsonar.projectName=nodetodo -Dsonar.projectKey=nodetodo -X"
+              }
             }
         }
+        
         stage("SonarQube Quality Gates"){
             steps{
-               timeout(time: 1, unit: "MINUTES"){
-                   waitForQualityGate abortPipeline: false
-               }
+              timeout(time: 1, unit:"MINUTES"){
+                waitForQualityGate abortPipeline: false
+              }
             }
         }
+        
         stage("OWASP"){
             steps{
-                dependencyCheck additionalArguments: '--scan ./', odcInstallation: 'OWASP'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+               dependencyCheck additionalArguments: '--scan ./' , odcInstallation: 'OWASP'
+               dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-        stage("Build & Test"){
+
+        stage("build and test"){
             steps{
                 sh 'docker build -t node-app-batch-6:latest .'
-                echo "Code Built Successfully"
+               echo "build sucess"
             }
         }
-        stage("Trivy"){
+         stage("Trivy"){
             steps{
-                sh "trivy image node-app-batch-6"
+              sh "trivy image node-app-batch-6"
             }
         }
+     
+        
         stage("Push to Private Docker Hub Repo"){
             steps{
                 withCredentials([usernamePassword(credentialsId:"DockerHubCreds",passwordVariable:"dockerPass",usernameVariable:"dockerUser")]){
@@ -51,13 +55,13 @@ pipeline {
                 sh "docker tag node-app-batch-6:latest ${env.dockerUser}/node-app-batch-6:latest"
                 sh "docker push ${env.dockerUser}/node-app-batch-6:latest"
                 }
-                
             }
         }
-        stage("Deploy"){
+        
+        stage("deploy"){
             steps{
-                sh "docker-compose down && docker-compose up -d"
-                echo "App Deployed Successfully"
+               sh "docker compose up -d"
+                 echo "deployed sucessfully"
             }
         }
     }
